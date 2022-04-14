@@ -12,7 +12,7 @@
 =#
 
 # Example:
-# using LinearAlgebra
+using LinearAlgebra
 
 #=
     If you're going to include files, please do so up here. Note that they
@@ -39,9 +39,9 @@ function init!(M::BFGS, x)
     return M
 end
 
-function step!(M::BFGS, f, ∇f, x, alpha_searches=5, iterations=1, α=0.1, n=10)
+function step!(M::BFGS, f, ∇f, x,  alpha_searches=5, step_lim=10, line_search_lim=10, avail_evals=10)
     num_evals = count(f,∇f)
-    print("\n step! START function calls $num_evals")
+    # print("\n step! START function calls $num_evals")
     
     Q, g = M.Q, ∇f(x)
 
@@ -49,15 +49,18 @@ function step!(M::BFGS, f, ∇f, x, alpha_searches=5, iterations=1, α=0.1, n=10
     # if iterations == 1
     #     x′, α = line_search_fix_alpha(f=f,x=x, d=-Q * g,g_for_count= g, n=alpha_searches, iterations=iterations, α)
     # else
-    x′, α = line_search_fix_alpha(f, x, -Q * g, ∇f, alpha_searches, iterations, α)
+    x′ = line_search_fix_alpha(f, x, -Q * g, ∇f, alpha_searches, line_search_lim, avail_evals)
     # end
+    if x′ == false
+        return false
+    end
 
     num_evals = count(f,∇f)
-    print("\n step! function calls $num_evals")
-    # if num_evals > n -1
-    #     print("\n overload in step! $n")
-    #     return false, α
-    # end
+    # print("\n step! function calls $num_evals")
+    if num_evals > avail_evals - step_lim
+        # print("\n overload in step! $avail_evals")
+        return false
+    end
 
 
     g′ = ∇f(x′)
@@ -67,7 +70,7 @@ function step!(M::BFGS, f, ∇f, x, alpha_searches=5, iterations=1, α=0.1, n=10
     Q[:] = Q - (δ * γ' * Q + Q * γ * δ') / (δ' * γ) + (1+(γ'*Q*γ)/(δ'*γ))[1] * (δ * δ') / (δ' * γ)
     # print("\n x′",x′)
 
-    return x′, α
+    return x′
 end
 
 
@@ -84,39 +87,70 @@ Arguments:
 Returns:
     - The location of the minimum
 """
-function optimize(f, g, x0, n, prob)
+function optimize(f, g, x0, avail_evals, probname)
     # TODO keep track of n 
     # using a problem agnostic BFGS method
     # starting matrix to be initialized 
     undef_m = BFGS(undef)
     init_m = init!(undef_m, x0)
 
-    # take steps w BFGS while we are still improving + less than n steps taken 
+    # problem specific
+    # probname = PROBS[prob]
+    println("probname $probname")
+    if probname == "simple1"
+        alpha_searches = 12
+        step_lim = 2
+        line_search_lim = 9
+    elseif probname == "simple2"
+        alpha_searches = 15
+        step_lim = 5
+        line_search_lim = 20
+
+    elseif probname  == "simple3"
+        alpha_searches = 10
+        step_lim = 5
+        line_search_lim = 20
+
+    else
+        alpha_searches = 5
+        step_lim = 5
+        line_search_lim = 5
+    end
+
+
+    
+
+    # take steps w BFGS while we less than avail_evals steps taken 
     num_evals = count(f, g)
-    print("\n num_evals start $num_evals")
+    # print("\n num_evals start $num_evals")
     iterations = 1
-    α = 0.1
     x_ints = []
 
-    while num_evals < n - 5
-        x_int, α = step!(init_m, f, g, x0, 3, iterations, α, n)
+    while num_evals < avail_evals - 5
+        x_int = step!(init_m, f, g, x0, alpha_searches, step_lim, line_search_lim, avail_evals)
         if x_int == false
             push!(x_ints, x0)
             break
         end
         push!(x_ints, x_int)
         num_evals = count(f, g)
-        print("\n num_evals $num_evals, n $n, iterations $iterations \n")
+        # print("\n num_evals $num_evals, n $avail_evals, iterations $iterations \n")
         iterations = iterations + 1
     end
 
-    print("\n num_evals end $num_evals \n")
-    x_best = last(x_ints) #x_int
+    num_evals = count(f, g)
+    # print("\n num_evals end $num_evals \n")
+    
+    x_best = x_ints[1] #x_int
+
+    # println("$probname: alpha_searches $alpha_searches - step_lim $step_lim - line_search_lim $line_search_lim ")
 
     # plot_opt(x_ints, prob)
 
-    return x_best, x_ints
+    return x_best
 end
 
-main("simple2", 5, optimize)
+main("simple2", 10, optimize)
+
+# mymain("simple3", 10, optimize)
 

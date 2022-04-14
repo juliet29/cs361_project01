@@ -2,13 +2,13 @@
 # using Plots
 # using Symbolics
 using LinearAlgebra
-using Plots
+# using Plots
 
 
 function bracket_minimum(f,g_for_count, x=0, s=1e-2, k=2)
     """Used for univariate problems"""
     num_evals = count(f, g_for_count)
-    print("\n bracket_min START function calls $num_evals")
+    # print("\n bracket_min START function calls $num_evals")
     a, ya = x, f(x)
     b, yb = a .+ s, f(a .+ s)
     # print("\n yb ", yb, " ya ", ya)
@@ -26,7 +26,7 @@ function bracket_minimum(f,g_for_count, x=0, s=1e-2, k=2)
         if yc > yb
             # yc should be moving into the valley, so if its > b, probably going up a hill.. switch a and c
             num_evals = count(f, g_for_count)
-            print("\n bracket_min function calls $num_evals")
+            # print("\n bracket_min function calls $num_evals")
             return a < c ? (a, c) : (c, a)
         end
         # move all the vals over, a ->b, b -> c 
@@ -40,7 +40,7 @@ end
 function golden_section_search(f, a, b, n, g_for_count)
     "minimize univariate function, given an a bracket interval defined by a and b within n iterations"
     num_evals = count(f, g_for_count)
-    print("\n gold_sect START function calls $num_evals")
+    # print("\n gold_sect START function calls $num_evals")
     φ = MathConstants.golden
     ρ = φ - 1
     d = ρ * b + (1 - ρ) * a
@@ -56,7 +56,7 @@ function golden_section_search(f, a, b, n, g_for_count)
         end
     end
     num_evals = count(f, g_for_count)
-    print("\n gold_sect function calls $num_evals")
+    # print("\n gold_sect function calls $num_evals")
     return a < b ? (a, b) : (b, a)
 end
 
@@ -72,38 +72,37 @@ function minimize(f, a, b, n, g_for_count=0)
 end
 
 
-function line_search_fix_alpha(f, x, d, g_for_count, n=5, iterations=1, α=0.1)
+function line_search_fix_alpha(f, x, d, g_for_count, alpha_searches=5, line_search_lim=10, avail_evals=20)
+    # print(g_for_count)
     num_evals = count(f, g_for_count)
-    print("\n line_search START function calls $num_evals")
+    # print("\n line_search START function calls $num_evals")
+    if num_evals > avail_evals - line_search_lim
+        # print("\n overload in line search! $avail_evals")
+        return false
+    end
     objective = α -> f(x + α * d)
-    # print(f(x), ' ', x, ' ', d, '\n')
-    # ccall(:jl_exit, Cvoid, (Int32,), 86)
     a, b = bracket_minimum(objective, g_for_count)
 
-    α = minimize(objective, a, b, n, g_for_count)
+    α = minimize(objective, a, b, alpha_searches, g_for_count)
 
 
     num_evals = count(f, g_for_count)
-    print("\n line_search function calls $num_evals")
+    # print("\n line_search function calls $num_evals")
     # print(x + α * d, ' ',  x, ' ', α, ' ', d)
 
-    return x + α * d, α
+    return x + α * d
 end
 
 
-function plot_opt(array_x, probname)
-    prob = PROBS[probname]
-    y = [prob.f(x) for x in array_x]
-    x = [index for (index, value) in enumerate(array_x)]
-    println(x, y)
-    # plot(array_x, y)
-    plot(x, y, title=probname)
-    savefig("figures/$probname.png") 
-end
-
-
-
-
+# function plot_opt(array_x, probname)
+#     prob = PROBS[probname]
+#     y = [prob.f(x) for x in array_x]
+#     x = [index for (index, value) in enumerate(array_x)]
+#     println(x, y)
+#     # plot(array_x, y)
+#     plot(x, y, title=probname)
+#     savefig("figures/$probname.png") 
+# end
 
 
 # function line_search(f, x, d, n=12)

@@ -94,7 +94,7 @@ as the optimization (pass in your `optimize`).
 ## Returns:
     - (`mean_score`, `max_evals`)
 """
-function main(probname::String, repeat::Int, opt_func, seed=42)
+function mymain(probname::String, repeat::Int, opt_func, seed=42)
     scores = zeros(repeat)
     nevals = zeros(Int, repeat)
 
@@ -112,17 +112,52 @@ function main(probname::String, repeat::Int, opt_func, seed=42)
         x = [index for (index, value) in enumerate(array_x)]
         println(x, y)
         # plot(array_x, y)
-        plot!(x, y, title=probname)
+        plot!(x, y, markershape = :circle, linestyle = :solid,title=probname)
         
      
         # print("\n iter $i -- x_o $xo -- x̂* $x_star_hat")
     end
 
-    savefig("figures/$probname-2.png") 
+    savefig("figures/$probname-prob_opt.png") 
 
     print("\n $probname")
     print("\n scores ", scores)
     print("\n nevals ", nevals)
+
+    return scores, nevals
+end
+
+
+
+function main(probname::String, repeat::Int, opt_func, seed=42)
+    scores = zeros(repeat)
+    nevals = zeros(Int, repeat)
+
+    prob = PROBS[probname]
+
+    # Repeat the optimization with a different initialization
+    for i in 1:repeat
+        empty!(COUNTERS) # fresh eval-count each time
+        Random.seed!(seed + i)
+        x_star_hat, array_x = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname)
+        nevals[i], scores[i] = get_score(prob.f, prob.g, x_star_hat, prob.n)
+
+        # # plot 
+        # y = [prob.f(x) for x in array_x]
+        # x = [index for (index, value) in enumerate(array_x)]
+        # println(x, y)
+        # # plot(array_x, y)
+        # plot!(x, y, markershape = :circle, linestyle = :solid,title=probname)
+        
+     
+        # print("\n iter $i -- x_o $xo -- x̂* $x_star_hat")
+    end
+
+    # savefig("figures/$probname-prob_opt.png") 
+
+    # print("\n $probname")
+    # print("\n scores ", scores)
+    # print("\n nevals ", nevals)
 
     return scores, nevals
 end
