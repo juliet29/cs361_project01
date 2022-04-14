@@ -118,5 +118,5 @@ function optimize(f, g, x0, n, prob)
     return x_best, x_ints
 end
 
-main("simple1", 1, optimize)
+main("simple2", 5, optimize)
 

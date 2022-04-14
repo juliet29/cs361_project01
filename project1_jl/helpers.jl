@@ -104,7 +104,7 @@ function main(probname::String, repeat::Int, opt_func, seed=42)
     for i in 1:repeat
         empty!(COUNTERS) # fresh eval-count each time
         Random.seed!(seed + i)
-        x_star_hat, x_ints = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname)
+        x_star_hat, array_x = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname)
         nevals[i], scores[i] = get_score(prob.f, prob.g, x_star_hat, prob.n)
 
         # plot 
@@ -118,7 +118,7 @@ function main(probname::String, repeat::Int, opt_func, seed=42)
         # print("\n iter $i -- x_o $xo -- x̂* $x_star_hat")
     end
 
-    savefig("figures/$probname.png") 
+    savefig("figures/$probname-2.png") 
 
     print("\n $probname")
     print("\n scores ", scores)
