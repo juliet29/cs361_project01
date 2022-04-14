@@ -27,7 +27,7 @@ using LinearAlgebra
 include("myhelpers.jl")
 include("helpers.jl")
 
-
+"cs361_week01/AA222Project1/project1_jl/project1.jl"
 
 """
 BFGS works well for most problems 
@@ -47,36 +47,58 @@ end
 
 function step!(M::BFGS, f, ∇f, x,  alpha_searches=5, step_lim=10, line_search_lim=10, avail_evals=10)
     num_evals = count(f,∇f)
-    # print("\n step! START function calls $num_evals")
     
     Q, g = M.Q, ∇f(x)
-
-    # x′ = line_search(f, x, -Q*g)
-    # if iterations == 1
-    #     x′, α = line_search_fix_alpha(f=f,x=x, d=-Q * g,g_for_count= g, n=alpha_searches, iterations=iterations, α)
-    # else
     x′ = line_search_fix_alpha(f, x, -Q * g, ∇f, alpha_searches, line_search_lim, avail_evals)
-    # end
+    # returning from line search with too many evals 
     if x′ == false
         return false
     end
-
+    # check for too many evals before proceeding 
     num_evals = count(f,∇f)
-    # print("\n step! function calls $num_evals")
     if num_evals > avail_evals - step_lim
-        # print("\n overload in step! $avail_evals")
         return false
     end
-
 
     g′ = ∇f(x′)
     δ = x′ - x
     γ = g′ - g
 
     Q[:] = Q - (δ * γ' * Q + Q * γ * δ') / (δ' * γ) + (1+(γ'*Q*γ)/(δ'*γ))[1] * (δ * δ') / (δ' * γ)
-    # print("\n x′",x′)
 
     return x′
+end
+
+
+function BFGS_opt(f, g, x0, avail_evals, probname, alpha_searches, step_lim, line_search_lim)
+    # using a problem agnostic BFGS method
+    # starting matrix to be initialized 
+    undef_m = BFGS(undef)
+    init_m = init!(undef_m, x0)
+
+    # take steps w BFGS while we less than avail_evals steps taken 
+    num_evals = count(f, g)
+    iterations = 1
+    x_ints = []
+
+    while num_evals < avail_evals - 5
+        x_int = step!(init_m, f, g, x0, alpha_searches, step_lim, line_search_lim, avail_evals)
+        if x_int == false
+            push!(x_ints, x0)
+            break
+        end
+        push!(x_ints, x_int)
+        num_evals = count(f, g)
+        iterations = iterations + 1
+    end
+
+    x_best = first(x_ints) #x_int
+    println(x_best)
+
+    # when call my main for plotting 
+    # return x_best, x_ints
+    return x_best
+    
 end
 
 """
@@ -98,18 +120,70 @@ mutable struct NoisyDescent <: DescentMethod
     k
 end
 
-function initNoisy!(M::NoisyDescent, f,∇f, x )
-    initNoisy!(M.submethod,  f,∇f, x)
+function initNoisy!(M::NoisyDescent)
     M.k = 1
 end
 
-function stepNoisy(M::NoisyDescent, f,∇f, x)
-    x = stepNoisy!(M.submethod,  f,∇f, x)
+function stepNoisy!(M::NoisyDescent, G::GradientDescent, f,∇f, x)
+    x = stepGrad!(G, f,∇f, x)
+    
     σ = M.σ(M.k)
     x += σ.*randn(length(x))
     M.k +=1
+
+    println("k $(M.k) σ $σ")
     return x
 end
+
+function make_sigma(k)
+    return 1/k
+end
+
+function min_value(array)
+    lowest = 10e6
+    for i in array
+        println("i $i, $(typeof(i))")
+        println(min(i, 64.00))
+        if i < lowest
+            lowest = i
+            println("lowest $lowest")
+        end
+    end
+    return lowest
+end
+
+function noisy_opt(f,∇f, x, avail_evals)
+    grad_struct = GradientDescent(0.1)
+    noisy_struct = NoisyDescent(GradientDescent, make_sigma, 1)
+    # init_struct = initNoisy!(mut_struct)
+    int_x = []
+    int_f = Float64[] 
+    while count(f, ∇f) < avail_evals
+        x = stepNoisy!(noisy_struct, grad_struct, f, ∇f, x)
+        f_eval = f(x)
+        if isnan(f_eval) == false && isinf(f_eval) == false
+            push!(int_x, x)
+            push!(int_f, f_eval)
+        end
+    end
+
+    steps = [i for (i, v) in enumerate(int_x)]
+    println("typeof int_f $(typeof(int_f[1]))")
+    println("results $steps, $int_f")
+
+    println("min $(min(int_f...))")
+
+    x_best = int_x[argmin(int_f)]
+    println("best_f_index $(argmin(int_f)) -- best $x_best")
+    println("x hist $int_x")
+    return x_best 
+end
+
+# function plot_int(int_x, int_f)
+
+#     println(int_x, int_f)
+    
+# end
 
 
 
@@ -127,71 +201,35 @@ Returns:
     - The location of the minimum
 """
 function optimize(f, g, x0, avail_evals, probname)
-    # TODO keep track of n 
-    # using a problem agnostic BFGS method
-    # starting matrix to be initialized 
-    undef_m = BFGS(undef)
-    init_m = init!(undef_m, x0)
 
-    # problem specific
-    # probname = PROBS[prob]
-    # println("probname $probname")
     if probname == "simple1"
         alpha_searches = 12
         step_lim = 2
         line_search_lim = 9
+        return BFGS_opt(f, g, x0, avail_evals, probname, alpha_searches, step_lim, line_search_lim)
+
     elseif probname == "simple2"
         alpha_searches = 10
         step_lim = 5
         line_search_lim = 20
+        return noisy_opt(f, g, x0, avail_evals)
 
     elseif probname  == "simple3"
         alpha_searches = 10
         step_lim = 5
         line_search_lim = 20
+        return BFGS_opt(f, g, x0, avail_evals, probname, alpha_searches, step_lim, line_search_lim)
 
     else
         alpha_searches = 10
         step_lim = 5
         line_search_lim = 20
+        return BFGS_opt(f, g, x0, avail_evals, probname, alpha_searches, step_lim, line_search_lim)
     end
 
-
-    
-
-    # take steps w BFGS while we less than avail_evals steps taken 
-    num_evals = count(f, g)
-    # print("\n num_evals start $num_evals")
-    iterations = 1
-    x_ints = []
-
-    while num_evals < avail_evals - 5
-        x_int = step!(init_m, f, g, x0, alpha_searches, step_lim, line_search_lim, avail_evals)
-        if x_int == false
-            push!(x_ints, x0)
-            break
-        end
-        push!(x_ints, x_int)
-        num_evals = count(f, g)
-        # print("\n num_evals $num_evals, n $avail_evals, iterations $iterations \n")
-        iterations = iterations + 1
-    end
-
-    num_evals = count(f, g)
-    # print("\n num_evals end $num_evals \n")
-    
-    x_best = first(x_ints) #x_int
-
-    # println("$probname: alpha_searches $alpha_searches - step_lim $step_lim - line_search_lim $line_search_lim ")
-
-    # plot_opt(x_ints, prob)
-
-    # return x_best, x_ints
-    # print(x_best)
-    return x_best
 end
 
-main("simple2", 3, optimize)
+# main("simple2", 1, optimize)
 
 # mymain("simple3", 10, optimize)
 
