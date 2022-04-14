@@ -19,7 +19,7 @@ using Statistics
 # It may seem like a clever hack to edit this dictionary as part of your optimize
 # method to get infinite function evaluations, but beware...
 # you'll regret it when it goes through the autograder
-const COUNTERS = Dict{String, Int}()
+const COUNTERS = Dict{String,Int}()
 
 """
     @counted
@@ -50,8 +50,8 @@ end
 include("simple.jl")
 
 const PROBS = Dict("simple1" => (f=rosenbrock, g=rosenbrock_gradient, x0=rosenbrock_init, n=20),
-                   "simple2" => (f=himmelblau, g=himmelblau_gradient, x0=himmelblau_init, n=40),
-                   "simple3" => (f=powell, g=powell_gradient, x0=powell_init, n=100))
+    "simple2" => (f=himmelblau, g=himmelblau_gradient, x0=himmelblau_init, n=40),
+    "simple3" => (f=powell, g=powell_gradient, x0=powell_init, n=100))
 
 
 
@@ -61,8 +61,8 @@ const PROBS = Dict("simple1" => (f=rosenbrock, g=rosenbrock_gradient, x0=rosenbr
 
 Check how many times the function f has been called, or calculate f + 2g.
 """
-Base.count(f::Function)              = get(COUNTERS, string(nameof(f)), 0)
-Base.count(f::Function, g::Function) = count(f) + 2*count(g)
+Base.count(f::Function) = get(COUNTERS, string(nameof(f)), 0)
+Base.count(f::Function, g::Function) = count(f) + 2 * count(g)
 
 
 """
@@ -94,7 +94,7 @@ as the optimization (pass in your `optimize`).
 ## Returns:
     - (`mean_score`, `max_evals`)
 """
-function main(probname::String, repeat::Int, opt_func, seed = 42)
+function main(probname::String, repeat::Int, opt_func, seed=42)
     scores = zeros(repeat)
     nevals = zeros(Int, repeat)
 
@@ -104,9 +104,25 @@ function main(probname::String, repeat::Int, opt_func, seed = 42)
     for i in 1:repeat
         empty!(COUNTERS) # fresh eval-count each time
         Random.seed!(seed + i)
-        x_star_hat = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname)
+        x_star_hat, x_ints = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname)
         nevals[i], scores[i] = get_score(prob.f, prob.g, x_star_hat, prob.n)
+
+        # plot 
+        y = [prob.f(x) for x in array_x]
+        x = [index for (index, value) in enumerate(array_x)]
+        println(x, y)
+        # plot(array_x, y)
+        plot!(x, y, title=probname)
+        
+     
+        # print("\n iter $i -- x_o $xo -- x̂* $x_star_hat")
     end
+
+    savefig("figures/$probname.png") 
+
+    print("\n $probname")
+    print("\n scores ", scores)
+    print("\n nevals ", nevals)
 
     return scores, nevals
 end
