@@ -27,6 +27,12 @@ using LinearAlgebra
 include("myhelpers.jl")
 include("helpers.jl")
 
+
+
+"""
+BFGS works well for most problems 
+"""
+
 mutable struct BFGS
     Q #modifying matrix
 end
@@ -73,6 +79,39 @@ function step!(M::BFGS, f, ∇f, x,  alpha_searches=5, step_lim=10, line_search_
     return x′
 end
 
+"""
+Going to try grad descent for others 
+"""
+abstract type DescentMethod end
+struct GradientDescent <: DescentMethod 
+    α
+end
+
+function stepGrad!(M::GradientDescent, f, ∇f, x)
+    α, g = M.α, ∇f(x)
+    return x - α*g 
+end
+
+mutable struct NoisyDescent <: DescentMethod
+    submethod 
+    σ
+    k
+end
+
+function initNoisy!(M::NoisyDescent, f,∇f, x )
+    initNoisy!(M.submethod,  f,∇f, x)
+    M.k = 1
+end
+
+function stepNoisy(M::NoisyDescent, f,∇f, x)
+    x = stepNoisy!(M.submethod,  f,∇f, x)
+    σ = M.σ(M.k)
+    x += σ.*randn(length(x))
+    M.k +=1
+    return x
+end
+
+
 
 """
     optimize(f, g, x0, n, prob)
@@ -96,13 +135,13 @@ function optimize(f, g, x0, avail_evals, probname)
 
     # problem specific
     # probname = PROBS[prob]
-    println("probname $probname")
+    # println("probname $probname")
     if probname == "simple1"
         alpha_searches = 12
         step_lim = 2
         line_search_lim = 9
     elseif probname == "simple2"
-        alpha_searches = 15
+        alpha_searches = 10
         step_lim = 5
         line_search_lim = 20
 
@@ -112,9 +151,9 @@ function optimize(f, g, x0, avail_evals, probname)
         line_search_lim = 20
 
     else
-        alpha_searches = 5
+        alpha_searches = 10
         step_lim = 5
-        line_search_lim = 5
+        line_search_lim = 20
     end
 
 
@@ -141,16 +180,18 @@ function optimize(f, g, x0, avail_evals, probname)
     num_evals = count(f, g)
     # print("\n num_evals end $num_evals \n")
     
-    x_best = x_ints[1] #x_int
+    x_best = first(x_ints) #x_int
 
     # println("$probname: alpha_searches $alpha_searches - step_lim $step_lim - line_search_lim $line_search_lim ")
 
     # plot_opt(x_ints, prob)
 
+    # return x_best, x_ints
+    # print(x_best)
     return x_best
 end
 
-main("simple2", 10, optimize)
+main("simple2", 3, optimize)
 
 # mymain("simple3", 10, optimize)
 
