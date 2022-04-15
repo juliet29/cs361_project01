@@ -13,6 +13,11 @@
 
 # Example:
 using LinearAlgebra
+# using PlotlyJS
+# using Kaleido
+using Plots
+# pyplot()
+#  Kaleido
 
 #=
     If you're going to include files, please do so up here. Note that they
@@ -93,7 +98,7 @@ function BFGS_opt(f, g, x0, avail_evals, probname, alpha_searches, step_lim, lin
     end
 
     x_best = first(x_ints) #x_int
-    println(x_best)
+    # println(x_best)
 
     # when call my main for plotting 
     # return x_best, x_ints
@@ -110,8 +115,14 @@ struct GradientDescent <: DescentMethod
 end
 
 function stepGrad!(M::GradientDescent, f, ∇f, x)
+    
     α, g = M.α, ∇f(x)
-    return x - α*g 
+    g_to_norm = g[1]^2 + g[2]^2
+    g_norm = g/g_to_norm
+    # println("g $g")
+    # println("g_to_norm $g_to_norm")
+    # println("g_norm $g_norm")
+    return x - α*g_norm
 end
 
 mutable struct NoisyDescent <: DescentMethod
@@ -126,12 +137,12 @@ end
 
 function stepNoisy!(M::NoisyDescent, G::GradientDescent, f,∇f, x)
     x = stepGrad!(G, f,∇f, x)
-    
+    # σ = 0
     σ = M.σ(M.k)
     x += σ.*randn(length(x))
     M.k +=1
 
-    println("k $(M.k) σ $σ")
+    # println("k $(M.k) σ $σ")
     return x
 end
 
@@ -139,26 +150,14 @@ function make_sigma(k)
     return 1/k
 end
 
-function min_value(array)
-    lowest = 10e6
-    for i in array
-        println("i $i, $(typeof(i))")
-        println(min(i, 64.00))
-        if i < lowest
-            lowest = i
-            println("lowest $lowest")
-        end
-    end
-    return lowest
-end
 
-function noisy_opt(f,∇f, x, avail_evals)
-    grad_struct = GradientDescent(0.1)
+function noisy_opt(f,∇f, x, probname, avail_evals)
+    grad_struct = GradientDescent(20)
     noisy_struct = NoisyDescent(GradientDescent, make_sigma, 1)
     # init_struct = initNoisy!(mut_struct)
     int_x = []
     int_f = Float64[] 
-    while count(f, ∇f) < avail_evals
+    while count(f, ∇f) < avail_evals -5
         x = stepNoisy!(noisy_struct, grad_struct, f, ∇f, x)
         f_eval = f(x)
         if isnan(f_eval) == false && isinf(f_eval) == false
@@ -168,20 +167,50 @@ function noisy_opt(f,∇f, x, avail_evals)
     end
 
     steps = [i for (i, v) in enumerate(int_x)]
-    println("typeof int_f $(typeof(int_f[1]))")
     println("results $steps, $int_f")
 
-    println("min $(min(int_f...))")
 
     x_best = int_x[argmin(int_f)]
-    println("best_f_index $(argmin(int_f)) -- best $x_best")
-    println("x hist $int_x")
+    f_best = minimum(int_f)
+    println("best_f_index $(argmin(int_f)) -- best_x $x_best -- best $f_best")
+    # plot_contour(int_x, int_f, probname)
     return x_best 
 end
 
-# function plot_int(int_x, int_f)
+# function plot_contour(int_x, int_f, probname)
+#     prob = PROBS[probname]
+#     # make contour trace
+#     # contour values
+#     prob_range = range(-4.0, 4.0, 10)
+#     scale_factor = 1
+#     eval_m = zeros(Float32, length(prob_range), 2)
+#     eval_m[:,1] = scale_factor*prob_range
+#     eval_m[:,2] = scale_factor*prob_range
+#     x=eval_m[:,1]
+#     y =eval_m[:,2]
+#     Z = [prob.f([x1, x2]) for x1=eval_m[:,1], x2=eval_m[:,2] ]
+#     # trace 
+#     # plotlyjs()
+    
 
-#     println(int_x, int_f)
+#     prob_contour = contour(
+#     x=eval_m[:,1],
+#     y=eval_m[:,2],
+#     z=Z,
+#     )
+
+#     # layout = Layout(
+#     # title=probname,
+#     # xaxis_title="x1",
+#     # yaxis_title="x2",
+#     # )
+
+#     # p = PlotlyJS.plot([prob_contour], layout)
+#     fname = "figures_grad/$probname"
+#     savefig(prob_contour, fname)
+#     # PlotlyJS.savefig(p)
+
+
     
 # end
 
@@ -212,7 +241,7 @@ function optimize(f, g, x0, avail_evals, probname)
         alpha_searches = 10
         step_lim = 5
         line_search_lim = 20
-        return noisy_opt(f, g, x0, avail_evals)
+        return noisy_opt(f, g, x0, probname, avail_evals)
 
     elseif probname  == "simple3"
         alpha_searches = 10
@@ -229,7 +258,7 @@ function optimize(f, g, x0, avail_evals, probname)
 
 end
 
-# main("simple2", 1, optimize)
+main("simple2", 1, optimize)
 
 # mymain("simple3", 10, optimize)
 
