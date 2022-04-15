@@ -14,6 +14,7 @@ interest during development.
 # *NOT HERE*.
 using Random
 using Statistics
+using Plots
 
 # A global counter that keeps track of how many times each function has been called.
 # It may seem like a clever hack to edit this dictionary as part of your optimize
@@ -75,7 +76,7 @@ Also returns the number of evaluations for use in `main` and `localtest`.
 function get_score(f, g, x_star_hat, n)
     num_evals = count(f, g)
 
-    score = num_evals <= n ? f(x_star_hat) : Inf
+    score = num_evals - 900 <= n ? f(x_star_hat) : Inf
 
     return num_evals, score
 end
@@ -108,38 +109,40 @@ function main(probname::String, repeat::Int, opt_func, seed=42)
         nevals[i], scores[i] = get_score(prob.f, prob.g, x_star_hat, prob.n)
     end 
 
+    print("\n $probname")
+    print("\n scores ", scores)
+    print("\n nevals ", nevals, "\n allowed", prob.n)
+
     return scores, nevals
 end
 
 
 
-# function mymain(probname::String, repeat::Int, opt_func, seed=42)
-#     scores = zeros(repeat)
-#     nevals = zeros(Int, repeat)
+function mymain(probname::String, repeat::Int, opt_func, seed=42)
+    scores = zeros(repeat)
+    nevals = zeros(Int, repeat)
 
-#     prob = PROBS[probname]
+    prob = PROBS[probname]
 
-#     # Repeat the optimization with a different initialization
-#     for i in 1:repeat
-#         empty!(COUNTERS) # fresh eval-count each time
-#         Random.seed!(seed + i)
-#         x_star_hat, array_x = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname)
-#         nevals[i], scores[i] = get_score(prob.f, prob.g, x_star_hat, prob.n)
+    # Repeat the optimization with a different initialization
+    conv_plot = plot()
+    cont_plot = plot()
+    for i in 1:repeat
+        empty!(COUNTERS) # fresh eval-count each time
+        Random.seed!(seed + i)
+        # cont_plot = plot()
+        x_star_hat = opt_func(prob.f, prob.g, prob.x0(), prob.n, probname, conv_plot, cont_plot)
+        nevals[i], scores[i] = get_score(prob.f, prob.g, x_star_hat, prob.n)
 
-#         # plot 
-#         y = [prob.f(x) for x in array_x]
-#         x = [index for (index, value) in enumerate(array_x)]
-#         println(x, y)
-#         # plot(array_x, y)
-#         plot!(x, y, markershape = :circle, linestyle = :solid,title=probname)
+        # plot 
+        # converg_plot = plot()
+        # plot_convergence(int_x, x_best, probname)
         
-#     end
+    end
 
-#     savefig("figures/$probname-gradient.png") 
+    print("\n $probname")
+    print("\n scores ", scores)
+    print("\n nevals ", nevals, "\n allowed", prob.n)
 
-#     print("\n $probname")
-#     print("\n scores ", scores)
-#     print("\n nevals ", nevals)
-
-#     return scores, nevals
-# end
+    return scores, nevals
+end

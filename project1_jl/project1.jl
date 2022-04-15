@@ -16,6 +16,7 @@ using LinearAlgebra
 # using PlotlyJS
 # using Kaleido
 using Plots
+# using PyPlot
 # pyplot()
 #  Kaleido
 
@@ -151,13 +152,13 @@ function make_sigma(k)
 end
 
 
-function noisy_opt(f,∇f, x, probname, avail_evals)
+function noisy_opt(f,∇f, x, probname, avail_evals, conv_plot=undef, cont_plot=undef)
     grad_struct = GradientDescent(20)
-    noisy_struct = NoisyDescent(GradientDescent, make_sigma, 1)
+    noisy_struct = NoisyDescent(GradientDescent, make_sigma, 10)
     # init_struct = initNoisy!(mut_struct)
     int_x = []
     int_f = Float64[] 
-    while count(f, ∇f) < avail_evals -5
+    while count(f, ∇f) < avail_evals - 5
         x = stepNoisy!(noisy_struct, grad_struct, f, ∇f, x)
         f_eval = f(x)
         if isnan(f_eval) == false && isinf(f_eval) == false
@@ -172,47 +173,54 @@ function noisy_opt(f,∇f, x, probname, avail_evals)
 
     x_best = int_x[argmin(int_f)]
     f_best = minimum(int_f)
-    println("best_f_index $(argmin(int_f)) -- best_x $x_best -- best $f_best")
-    # plot_contour(int_x, int_f, probname)
-    return x_best 
+    println("best_f_index $(argmin(int_f)) -- best_x $x_best -- best $f_best")   
+
+    plot_contour(int_x, x_best, probname, cont_plot)
+    plot_convergence(int_x, int_f, probname, conv_plot)
+
+    return x_best
 end
 
-# function plot_contour(int_x, int_f, probname)
-#     prob = PROBS[probname]
-#     # make contour trace
-#     # contour values
-#     prob_range = range(-4.0, 4.0, 10)
-#     scale_factor = 1
-#     eval_m = zeros(Float32, length(prob_range), 2)
-#     eval_m[:,1] = scale_factor*prob_range
-#     eval_m[:,2] = scale_factor*prob_range
-#     x=eval_m[:,1]
-#     y =eval_m[:,2]
-#     Z = [prob.f([x1, x2]) for x1=eval_m[:,1], x2=eval_m[:,2] ]
-#     # trace 
-#     # plotlyjs()
+
+function plot_convergence(int_x, int_f, probname, c_plot)
+        x = [index for (index, value) in enumerate(int_x)]
+        plot!(c_plot, x, int_f, markershape = :circle, linestyle = :solid,title=probname)
+
+        fname = "figures_converg/$probname"
+        savefig(c_plot, fname)
     
+end
 
-#     prob_contour = contour(
-#     x=eval_m[:,1],
-#     y=eval_m[:,2],
-#     z=Z,
-#     )
+function plot_contour(int_x, x_best, probname, c_plot)
+    prob = PROBS[probname]
+    # make contour trace
+    # contour values
+    prob_range = range(-5.0, 5.0, 30)
+    scale_factor = 1
+    eval_m = zeros(Float32, length(prob_range), 2)
+    eval_m[:,1] = scale_factor*prob_range
+    eval_m[:,2] = scale_factor*prob_range
+    x=eval_m[:,1]
+    y =eval_m[:,2]
+    z = [prob.f([x1, x2]) for x1=eval_m[:,1], x2=eval_m[:,2] ]
 
-#     # layout = Layout(
-#     # title=probname,
-#     # xaxis_title="x1",
-#     # yaxis_title="x2",
-#     # )
+    contour!(c_plot, x, y, z, fill = false, title=probname, dpi=300, size=(700, 300), contourlabels=false, levels=30)
 
-#     # p = PlotlyJS.plot([prob_contour], layout)
-#     fname = "figures_grad/$probname"
-#     savefig(prob_contour, fname)
-#     # PlotlyJS.savefig(p)
-
-
+    # function performance 
+    x1 = [row[1] for row in int_x]
+    x2 = [row[2] for row in int_x]
     
-# end
+    plot!(c_plot, x1, x2, markershape = :circle, linestyle = :solid, label="Intermediate")
+    # indicate starting point
+    plot!(c_plot, [x1[1]], [x2[1]], markershape = :circle, linestyle = :solid, markercolor = :blue, label="Start")
+    # indicate end
+    plot!(c_plot, [last(x1)], [last(x2)], markershape = :circle, linestyle = :solid, markercolor = :yellow, label="End")
+    # indicate best
+    plot!(c_plot, [x_best[1]], [x_best[2]], markershape = :circle, linestyle = :solid, markercolor = :red, label="Best")
+
+    fname = "figures_contour/$probname"
+    savefig(c_plot, fname)
+end
 
 
 
@@ -229,7 +237,7 @@ Arguments:
 Returns:
     - The location of the minimum
 """
-function optimize(f, g, x0, avail_evals, probname)
+function optimize(f, g, x0, avail_evals, probname, conv_plot=undef, cont_plot=undef)
 
     if probname == "simple1"
         alpha_searches = 12
@@ -241,7 +249,8 @@ function optimize(f, g, x0, avail_evals, probname)
         alpha_searches = 10
         step_lim = 5
         line_search_lim = 20
-        return noisy_opt(f, g, x0, probname, avail_evals)
+        # return noisy_opt(f, g, x0, probname, avail_evals)
+        return noisy_opt(f, g, x0, probname, avail_evals, conv_plot, cont_plot)
 
     elseif probname  == "simple3"
         alpha_searches = 10
@@ -258,7 +267,7 @@ function optimize(f, g, x0, avail_evals, probname)
 
 end
 
-main("simple2", 1, optimize)
+mymain("simple2", 2, optimize)
 
 # mymain("simple3", 10, optimize)
 
